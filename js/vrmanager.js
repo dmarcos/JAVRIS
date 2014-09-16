@@ -6,42 +6,90 @@ window.VRManager = (function() {
   function VRManager(container) {
     var self = this;
     var transitionCanvas = document.createElement('canvas');
+    var renderer = new THREE.WebGLRenderer({ canvas: transitionCanvas, alpha: true });
+    var camera = new THREE.PerspectiveCamera( 70, transitionCanvas.width / transitionCanvas.height, 1, 1000 );
+    var scene = new THREE.Scene();
+    renderer.setSize( transitionCanvas.width, transitionCanvas.height );
 
-    self.renderFadeOut = function(canvas, opacity) {
-      var opacity = opacity || 0;
-      var context = canvas.getContext("2d");
-      var width = canvas.width;
-      var height = canvas.height;
-      if (opacity >= 1) {
-        return;
+    self.renderFadeOut = function(canvas) {
+
+      var opacity = 0;
+      animate();
+
+      function animate() {
+        if (opacity >= 1) {
+          return;
+        }
+        requestAnimationFrame( animate );
+        renderer.setClearColor( 0x000000, opacity);
+        opacity += 0.1;
+        render();
       }
-      context.clearRect(0, 0, width , height);
-      context.globalAlpha = opacity;
-      context.fillStyle="rgb(0, 0, 0)";
-      context.fillRect(0, 0, width, height);
-      requestAnimationFrame(render);
+
       function render() {
-        self.renderFadeOut(canvas, opacity + 0.1);
+        camera.lookAt( scene.position );
+        renderer.render( scene, camera );
       }
     };
 
     self.renderFadeIn = function(canvas, opacity) {
-      var opacity = typeof opacity === "undefined"? 1 : opacity;
-      var context = canvas.getContext("2d");
-      var width = canvas.width;
-      var height = canvas.height;
-      if (opacity <= 0) {
-        return;
+
+      var opacity = 1;
+      animate();
+
+      function animate() {
+        if (opacity <= 0) {
+          return;
+        }
+        requestAnimationFrame( animate );
+        renderer.setClearColor( 0x000000, opacity);
+        opacity -= 0.1;
+        render();
       }
-      context.clearRect(0, 0, width , height);
-      context.globalAlpha = opacity;
-      context.fillStyle="rgb(0, 0, 0)";
-      context.fillRect(0, 0, width, height);
-      requestAnimationFrame(render);
+
       function render() {
-        self.renderFadeIn(canvas, opacity - 0.1);
+        camera.lookAt( scene.position );
+        renderer.render( scene, camera );
       }
+
+
     };
+
+    // self.renderFadeOut = function(canvas, opacity) {
+    //   var opacity = opacity || 0;
+    //   var context = canvas.getContext("2d");
+    //   var width = canvas.width;
+    //   var height = canvas.height;
+    //   if (opacity >= 1) {
+    //     return;
+    //   }
+    //   context.clearRect(0, 0, width , height);
+    //   context.globalAlpha = opacity;
+    //   context.fillStyle="rgb(0, 0, 0)";
+    //   context.fillRect(0, 0, width, height);
+    //   requestAnimationFrame(render);
+    //   function render() {
+    //     self.renderFadeOut(canvas, opacity + 0.1);
+    //   }
+    // };
+
+    // self.renderFadeIn = function(canvas, opacity) {
+    //   var opacity = typeof opacity === "undefined"? 1 : opacity;
+    //   var context = canvas.getContext("2d");
+    //   var width = canvas.width;
+    //   var height = canvas.height;
+    //   if (opacity <= 0) {
+    //     return;
+    //   }
+    //   context.clearRect(0, 0, width , height);
+    //   context.globalAlpha = opacity;
+    //   context.fillStyle="rgb(0, 0, 0)";
+    //   context.fillRect(0, 0, width, height);
+    //   requestAnimationFrame(render);
+    //   function render() {
+    //     self.renderFadeIn(canvas, opacity - 0.1);
+    //   }
+    // };
 
     self.container = document.querySelector(container);
     self.transition = new VRTransition(self.container, transitionCanvas);
