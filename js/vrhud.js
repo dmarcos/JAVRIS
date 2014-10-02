@@ -8,7 +8,7 @@ var Tile = function (name, url, cords, siteInfo) {
   self.siteInfo = siteInfo;
 
   self.getSiteInfo = function() {
-    var info = { 
+    var info = {
       '.title': this.name,
       '.url': this.url
     }
@@ -73,16 +73,16 @@ Grid.prototype.render = function () {
     var col = tile.cords.x,
       row = tile.cords.y;
 
-    // calculate coordinates for layout 
+    // calculate coordinates for layout
     // todo: move somewhere else so that we are not recalculating for every tile added.
     // var rotOffset = (rotPerTile * self.cols) / 2, // rotation offset to center entire grid on viewport.
     var rotOffset = 0, // rotation offset to center entire grid on viewport.
-    
+
       // transYOffset = (self.rows * opts.tileHeight) / 2, // offset to arrange vertically on viewport.
       transYOffset = 0, // offset to arrange vertically on viewport.
-    
-    // calculate coordinates for tile  
-    rotY = (tile.cords.x * rotPerTile - rotOffset), 
+
+    // calculate coordinates for tile
+    rotY = (tile.cords.x * rotPerTile - rotOffset),
     transY = (row * (opts.tileHeight + opts.tileGutter) + transYOffset) * -1, // vertical translation from axis
     transZ = opts.radius * -1;  // depth of tile from axis
 
@@ -100,7 +100,7 @@ Grid.prototype.render = function () {
     // mesh.position.z = transZ;
     var x = Math.sin( rotY ) * opts.radius;
     var z = (Math.cos( rotY ) * opts.radius) * -1;
-    
+
     mesh.position.z = z;
     mesh.position.x = x;
     mesh.position.y = transY;
@@ -108,7 +108,7 @@ Grid.prototype.render = function () {
     console.log(x, z, rotY)
     // create link and label for plane
     // self.url  self.name
-    
+
     // handle clicks to plane
     // div.addEventListener('click', function(e) {
     //   if (VRHud.running) {
@@ -127,9 +127,9 @@ Grid.prototype.render = function () {
 
 
     // mesh.translateOnAxis( new THREE.Vector3(0,0,1).normalize(), transZ );
-    
+
     // mesh.rotateOnAxis( new THREE.Vector3(0,1,0).normalize(), rotY );
-    
+
     // use velocity hook to place element
     // Velocity.hook(tile.gridEl, 'rotateY', tile.cords.rotateY);
     // Velocity.hook(tile.gridEl, 'translateY', tile.cords.translateY);
@@ -140,7 +140,7 @@ Grid.prototype.render = function () {
     // tile.gridEl.style.height = (tile.cords.h * opts.tileHeight) + ((tile.cords.h - 1) * opts.tileGutter) + 'rem';
 
     //self.container.appendChild(tile.gridEl);
-    
+
     self.scene.add( mesh );
   }
 
@@ -177,7 +177,7 @@ window.VRHud = (function() {
     // three.js setup
     self.renderer = new THREE.WebGLRenderer( { alpha: true } );
     self.renderer.setClearColor( 0x000000, 0 );
-    
+
     self.container.appendChild( self.renderer.domElement );
 
     self.scene = new THREE.Scene();
@@ -194,6 +194,26 @@ window.VRHud = (function() {
     mesh.position.z = -28;
     self.scene.add( mesh );
 
+    // Cursor
+    self.raycaster = new THREE.Raycaster();
+    var cursorPivot = new THREE.Object3D();
+    self.scene.add(cursorPivot);
+    self.cursorPivot = cursorPivot;
+
+    var cursor = new THREE.Mesh(
+      new THREE.PlaneGeometry( 1, 1 ),
+      new THREE.MeshBasicMaterial( { color: 0x00ff00, side: THREE.DoubleSide } )
+    );
+    cursor.position.z = -28;
+    cursorPivot.add( cursor );
+    self.cursor = cursor;
+    self.elWidth = window.clientWidth;
+    self.elHeight = window.clientHeight;
+    self.mouse = {
+      x: 0,
+      y: 0
+    };
+    self.bindEvents();
 
     // self.running = false;
     // self.currentSelection = null;
@@ -226,13 +246,75 @@ window.VRHud = (function() {
     self.grid.addTile(
       new Tile('Interstitial', './Interstitial/spatial/index.html', { x: 0, y: 3, w: 1, h: 1 }, { '.author': 'Josh Carpenter', '.tech': 'Cinema 4D, VR Dom'})
     );
-    
+
     self.grid.render();
 
     self.animate();
     // self.start();
 
     return self;
+  };
+
+  VRHud.prototype.bindEvents = function() {
+    var body = window && window.parent? window.parent.document.body : document.body;
+    var onMouseMoved = this.onMouseMoved.bind(this);
+    var onMouseDown = this.onMouseDown.bind(this);
+    body.addEventListener("mousemove", onMouseMoved, false);
+    body.addEventListener("mousedown", onMouseDown, false);
+  };
+
+  VRHud.prototype.onMouseMoved = function(e) {
+    var movementX = e.mozMovementX || 0;
+    var movementY = e.mozMovementY || 0;
+    var elHalfWidth = this.elWidth / 2;
+    var elHalfHeight = this.elHeight / 2;
+    var minX = -elHalfWidth;
+    var maxX = elHalfWidth;
+    var minY = -elHalfHeight;
+    var maxY = elHalfHeight;
+    var x = this.mouse.x;
+    var y = this.mouse.y;
+    var padding = 50;
+    x += movementX;
+    y += movementY;
+    this.mouse = {
+      x: x,
+      y: y
+    };
+  };
+
+  VRHud.prototype.onMouseDown = function() {
+
+  };
+
+  VRHud.prototype.updateCursor = function() {
+    var pixelsToDegreesFactor = 0.0004;
+    var x = (this.mouse.x * pixelsToDegreesFactor) % 360;
+    var y = (this.mouse.y * pixelsToDegreesFactor) % 360;
+    var cursorPivot = this.cursorPivot;
+    var cursor = this.cursor;
+    cursorPivot.rotation.x = 2 * Math.PI * -y;
+    cursorPivot.rotation.y = 2 * Math.PI * -x;
+    //this.updateCursorIntersection()
+  };
+
+  VRHud.prototype.updateCursorIntersection = function() {
+    var camera = this.camera;
+    var raycaster = this.raycaster;
+    var scene = this.scene;
+    var cursor = this.cursor;
+    var vector = new THREE.Vector3( cursor.position.x, cursor.position.y, 1 ).unproject( camera );
+    raycaster.set( camera.position, vector.sub( camera.position ).normalize() );
+    var intersects = raycaster.intersectObjects( scene.children );
+    var intersected;
+    var i;
+    for (i = 0; i < intersects.length; ++i) {
+      intersected = intersects[0].object;
+      if (intersected.material) {
+        intersected.material.color.set( 0xff0000 );
+        intersected.material.needsUpdate = true;
+      }
+    }
   };
 
   VRHud.prototype.animate = function() {
@@ -242,10 +324,10 @@ window.VRHud = (function() {
   };
 
   VRHud.prototype.render = function() {
+    this.updateCursor();
     this.controls.update();
     this.effect.render( this.scene, this.camera );
-  }
-
+  };
 
   VRHud.prototype.start = function() {
     if (this.transitioning) {
@@ -258,7 +340,7 @@ window.VRHud = (function() {
     var currentDemo = VRManager.currentDemo;
     if (currentDemo) { currentDemo.sendMessage('disablecursor'); }
     VRManager.cursor.enable();
-    
+
     this.running = true;
   };
 
@@ -326,16 +408,16 @@ window.VRHud = (function() {
     var rotPerPanel = 360 / numPanels;
     var radius = this.grid.opts.radius + 5;
     var i, div;
-    
+
     for ( i = 0; i < numPanels; i++ ) {
       div = document.createElement('div');
-      
+
       var rotY = i * rotPerPanel + 'deg';
       var transZ = radius * -1 + 'rem';
       var transY = (this.grid.rows + 1) * this.grid.opts.tileHeight / 2 * -1 + 'rem';
       var height = (this.grid.rows + 1) * this.grid.opts.tileHeight + 'rem';
       var width = (radius * Math.tan(rotPerPanel * Math.PI/180))-0.06 + 'rem';  // micro adjust gap between panels.
-      
+
       div.style.width = width;
       div.style.height = height;
       div.style.transform = 'translateZ(' + transZ + ') rotateY(' + rotY + ')';
@@ -371,7 +453,7 @@ window.VRHud = (function() {
       } else {
         self.transitioning = true;
       }
-      
+
       self.underlayIn();
 
       shuffledTiles = shuffle(self.grid.tiles);
@@ -417,7 +499,7 @@ window.VRHud = (function() {
               resolve();
               self.underlayOut();
             }
-          });        
+          });
       }
     });
   };
